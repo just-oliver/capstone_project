@@ -111,58 +111,61 @@ def get_matches():
                 port=5432) as conn:
         with conn.cursor() as cur:
             for rank_dist in rank_distributions:
-                matches = requests.get(
-                    f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
-                ).json()
-                insert_match_query = """
-                                    INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
-                                    VALUES (%s, %s, %s)
-                                    ON CONFLICT (match_id) DO NOTHING;
-                                    """
-                insert_player_query = """
-                                    INSERT INTO student.ojdb_hero_picks (match_id, hero_id, team, facet, items, backpack, neutral_item,
-                                    kills, deaths, assists, gold_per_min, xp_per_min, level, net_worth, aghanims_scepter, aghanims_shard,
-                                    moonshard, hero_damage, tower_damage, hero_healing)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                    ON CONFLICT (match_id, hero_id) DO NOTHING;
-                                    """
-                
-                for match in matches:
-                    match_values = (
-                        match['match_id'],
-                        match['avg_rank_tier'],
-                        match['radiant_win']           
-                        )
-                    cur.execute(insert_match_query, match_values)
-                    match_data = requests.get(
-                        f"https://api.opendota.com/api/matches/{match['match_id']}"
+                try:
+                    matches = requests.get(
+                        f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
                     ).json()
-                    player_data = match_data['players']
-                    for player in player_data:
-                        player_values = (
+                    insert_match_query = """
+                                        INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
+                                        VALUES (%s, %s, %s)
+                                        ON CONFLICT (match_id) DO NOTHING;
+                                        """
+                    insert_player_query = """
+                                        INSERT INTO student.ojdb_hero_picks (match_id, hero_id, team, facet, items, backpack, neutral_item,
+                                        kills, deaths, assists, gold_per_min, xp_per_min, level, net_worth, aghanims_scepter, aghanims_shard,
+                                        moonshard, hero_damage, tower_damage, hero_healing)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                        ON CONFLICT (match_id, hero_id) DO NOTHING;
+                                        """
+                    
+                    for match in matches:
+                        match_values = (
                             match['match_id'],
-                            player['hero_id'],
-                            player['team_number'],
-                            player['hero_variant'],
-                            [player[f'item_{i}'] for i in range(6)],
-                            [player[f'backpack_{i}'] for i in range(3)],
-                            player['item_neutral'],
-                            player['kills'],
-                            player['deaths'],
-                            player['assists'],
-                            player['gold_per_min'],
-                            player['xp_per_min'],
-                            player['level'],
-                            player['net_worth'],
-                            bool(player['aghanims_scepter']),
-                            bool(player['aghanims_shard']),
-                            bool(player['moonshard']),
-                            player['hero_damage'],
-                            player['tower_damage'],
-                            player['hero_healing']
-                        )
-                        cur.execute(insert_player_query, player_values)
-                    conn.commit()
+                            match['avg_rank_tier'],
+                            match['radiant_win']           
+                            )
+                        cur.execute(insert_match_query, match_values)
+                        match_data = requests.get(
+                            f"https://api.opendota.com/api/matches/{match['match_id']}"
+                        ).json()
+                        player_data = match_data['players']
+                        for player in player_data:
+                            player_values = (
+                                match['match_id'],
+                                player['hero_id'],
+                                player['team_number'],
+                                player['hero_variant'],
+                                [player[f'item_{i}'] for i in range(6)],
+                                [player[f'backpack_{i}'] for i in range(3)],
+                                player['item_neutral'],
+                                player['kills'],
+                                player['deaths'],
+                                player['assists'],
+                                player['gold_per_min'],
+                                player['xp_per_min'],
+                                player['level'],
+                                player['net_worth'],
+                                bool(player['aghanims_scepter']),
+                                bool(player['aghanims_shard']),
+                                bool(player['moonshard']),
+                                player['hero_damage'],
+                                player['tower_damage'],
+                                player['hero_healing']
+                            )
+                            cur.execute(insert_player_query, player_values)
+                        conn.commit()
+                except:
+                    pass
                 
 if __name__ == '__main__':
     load_dotenv()
