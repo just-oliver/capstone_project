@@ -121,64 +121,67 @@ def get_matches():
                         f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
                     )
                     limit +=1
-                matches = responce.json()
-                insert_match_query = """
-                                    INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
-                                    VALUES (%s, %s, %s)
-                                    ON CONFLICT (match_id) DO NOTHING;
-                                    """
-                insert_player_query = """
-                                    INSERT INTO student.ojdb_hero_picks (match_id, hero_id, team, facet, items, backpack, neutral_item,
-                                    kills, deaths, assists, gold_per_min, xp_per_min, level, net_worth, aghanims_scepter, aghanims_shard,
-                                    moonshard, hero_damage, tower_damage, hero_healing)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                    ON CONFLICT (match_id, hero_id) DO NOTHING;
-                                    """
-                
-                for match in matches:
-                    match_values = (
-                        match['match_id'],
-                        match['avg_rank_tier'],
-                        match['radiant_win']           
-                        )
-                    cur.execute(insert_match_query, match_values)
-                    match_responce = requests.get(
-                        f"https://api.opendota.com/api/matches/{match['match_id']}"
-                    )
-                    limit = 0
-                    while match_responce.status_code != 200 and limit < 60:
-                        time.sleep(0)
+                try:
+                    matches = responce.json()
+                    insert_match_query = """
+                                        INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
+                                        VALUES (%s, %s, %s)
+                                        ON CONFLICT (match_id) DO NOTHING;
+                                        """
+                    insert_player_query = """
+                                        INSERT INTO student.ojdb_hero_picks (match_id, hero_id, team, facet, items, backpack, neutral_item,
+                                        kills, deaths, assists, gold_per_min, xp_per_min, level, net_worth, aghanims_scepter, aghanims_shard,
+                                        moonshard, hero_damage, tower_damage, hero_healing)
+                                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                        ON CONFLICT (match_id, hero_id) DO NOTHING;
+                                        """
+                    
+                    for match in matches:
+                        match_values = (
+                            match['match_id'],
+                            match['avg_rank_tier'],
+                            match['radiant_win']           
+                            )
+                        cur.execute(insert_match_query, match_values)
                         match_responce = requests.get(
                             f"https://api.opendota.com/api/matches/{match['match_id']}"
                         )
-                        limit += 1
-                    match_data = match_responce.json()
-                    player_data = match_data['players']
-                    for player in player_data:
-                        player_values = (
-                            match['match_id'],
-                            player['hero_id'],
-                            player['team_number'],
-                            player['hero_variant'],
-                            [player[f'item_{i}'] for i in range(6)],
-                            [player[f'backpack_{i}'] for i in range(3)],
-                            player['item_neutral'],
-                            player['kills'],
-                            player['deaths'],
-                            player['assists'],
-                            player['gold_per_min'],
-                            player['xp_per_min'],
-                            player['level'],
-                            player['net_worth'],
-                            bool(player['aghanims_scepter']),
-                            bool(player['aghanims_shard']),
-                            bool(player['moonshard']),
-                            player['hero_damage'],
-                            player['tower_damage'],
-                            player['hero_healing']
-                        )
-                        cur.execute(insert_player_query, player_values)
-                    conn.commit()
+                        limit = 0
+                        while match_responce.status_code != 200 and limit < 60:
+                            time.sleep(0)
+                            match_responce = requests.get(
+                                f"https://api.opendota.com/api/matches/{match['match_id']}"
+                            )
+                            limit += 1
+                        match_data = match_responce.json()
+                        player_data = match_data['players']
+                        for player in player_data:
+                            player_values = (
+                                match['match_id'],
+                                player['hero_id'],
+                                player['team_number'],
+                                player['hero_variant'],
+                                [player[f'item_{i}'] for i in range(6)],
+                                [player[f'backpack_{i}'] for i in range(3)],
+                                player['item_neutral'],
+                                player['kills'],
+                                player['deaths'],
+                                player['assists'],
+                                player['gold_per_min'],
+                                player['xp_per_min'],
+                                player['level'],
+                                player['net_worth'],
+                                bool(player['aghanims_scepter']),
+                                bool(player['aghanims_shard']),
+                                bool(player['moonshard']),
+                                player['hero_damage'],
+                                player['tower_damage'],
+                                player['hero_healing']
+                            )
+                            cur.execute(insert_player_query, player_values)
+                        conn.commit()
+                except:
+                    pass
 
 def create_hero_bench_table():
     '''
@@ -237,14 +240,17 @@ def get_hero_benchmarks():
                     time.sleep(1)
                     responce = requests.get(f"https://api.opendota.com/api/benchmarks?hero_id={hero_id}")
                     limit += 1
-                benchmark_data = responce.json()
-                benchmark_values = (
-                    hero_id,
-                    benchmark_data['result']['gold_per_min'][4]['value'], # gpm
-                    benchmark_data['result']['xp_per_min'][4]['value'] #xpm
-                    )
-                
-                cur.execute(insert_bench_query, benchmark_values)
+                try:
+                    benchmark_data = responce.json()
+                    benchmark_values = (
+                        hero_id,
+                        benchmark_data['result']['gold_per_min'][4]['value'], # gpm
+                        benchmark_data['result']['xp_per_min'][4]['value'] #xpm
+                        )
+                    
+                    cur.execute(insert_bench_query, benchmark_values)
+                except:
+                    pass
             conn.commit()
         
                 
