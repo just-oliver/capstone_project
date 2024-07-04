@@ -114,11 +114,13 @@ def get_matches():
                 responce = requests.get(
                     f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
                 )
-                while responce.status_code !=200:
+                limit = 0
+                while responce.status_code !=200 and limit < 60:
                     time.sleep(1)
                     responce = requests.get(
                         f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
                     )
+                    limit +=1
                 matches = responce.json()
                 insert_match_query = """
                                     INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
@@ -143,10 +145,13 @@ def get_matches():
                     match_responce = requests.get(
                         f"https://api.opendota.com/api/matches/{match['match_id']}"
                     )
-                    while match_responce.status_code != 200:
+                    limit = 0
+                    while match_responce.status_code != 200 and limit < 60:
+                        time.sleep(0)
                         match_responce = requests.get(
                             f"https://api.opendota.com/api/matches/{match['match_id']}"
                         )
+                        limit += 1
                     match_data = match_responce.json()
                     player_data = match_data['players']
                     for player in player_data:
@@ -227,9 +232,11 @@ def get_hero_benchmarks():
         with conn.cursor() as cur:
             for hero_id in hero_ids:
                 responce = requests.get(f"https://api.opendota.com/api/benchmarks?hero_id={hero_id}")
-                while responce.status_code != 200:
+                limit = 0
+                while responce.status_code != 200 and limit < 60:
                     time.sleep(1)
                     responce = requests.get(f"https://api.opendota.com/api/benchmarks?hero_id={hero_id}")
+                    limit += 1
                 benchmark_data = responce.json()
                 benchmark_values = (
                     hero_id,
