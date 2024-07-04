@@ -6,10 +6,10 @@ Created on Sun Jun 23 17:56:22 2024
 """
 
 import requests
-from datetime import datetime
 import psycopg2 as psql
-from dotenv import load_dotenv, dotenv_values
+from dotenv import load_dotenv
 import os
+import time 
 
 def create_match_table():
     '''
@@ -111,9 +111,15 @@ def get_matches():
                 port=5432) as conn:
         with conn.cursor() as cur:
             for rank_dist in rank_distributions:
-                matches = requests.get(
+                responce = requests.get(
                     f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
-                ).json()
+                )
+                while responce.status_code !=200:
+                    time.sleep(1)
+                    responce = requests.get(
+                        f"https://api.opendota.com/api/publicMatches?min_rank={rank_dist[0]}&max_rank={rank_dist[1]}"
+                    )
+                matches = responce.json()
                 insert_match_query = """
                                     INSERT INTO student.ojdb_matches (match_id, avg_rank, radiant_wins)
                                     VALUES (%s, %s, %s)
@@ -134,9 +140,14 @@ def get_matches():
                         match['radiant_win']           
                         )
                     cur.execute(insert_match_query, match_values)
-                    match_data = requests.get(
+                    match_responce = requests.get(
                         f"https://api.opendota.com/api/matches/{match['match_id']}"
-                    ).json()
+                    )
+                    while match_responce.status_code != 200:
+                        match_responce = requests.get(
+                            f"https://api.opendota.com/api/matches/{match['match_id']}"
+                        )
+                    match_data = match_responce.json()
                     player_data = match_data['players']
                     for player in player_data:
                         player_values = (
@@ -163,9 +174,75 @@ def get_matches():
                         )
                         cur.execute(insert_player_query, player_values)
                     conn.commit()
+
+def create_hero_bench_table():
+    '''
+    Creates postgresql table for hero picks data if the table doesn't exist
+
+    Returns
+    -------
+    None.
+
+    '''
+    with psql.connect(database = 'pagila',
+               user = os.getenv("sql_user"),
+               host = os.getenv("host"),
+               password = os.getenv("sql_password"),
+               port=5432) as conn:
+        with conn.cursor() as cur:
+            creation_slq = '''
+            CREATE TABLE IF NOT EXISTS student.ojdb_hero_benchmark (
+                hero_id SMALLINT,
+                avg_gpm INT,
+                avg_xpm INT,
+                PRIMARY KEY(hero_id)
+            );
+            '''
+            cur.execute(creation_slq)
+            conn.commit()
+    
+def get_hero_benchmarks():
+    create_hero_bench_table()
+    hero_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+                36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
+                52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
+                68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83,
+                84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
+                100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112,
+                113, 114, 119, 120, 121, 123, 126, 128, 129, 135, 136, 137, 138]
+    
+    with psql.connect(database = 'pagila',
+                user = os.getenv("sql_user"),
+                host = os.getenv("host"),
+                password = os.getenv("sql_password"),
+                port=5432) as conn:
+        insert_bench_query = """
+                            INSERT INTO student.ojdb_hero_benchmark (hero_id, avg_gpm, avg_xpm)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (hero_id) DO UPDATE SET
+                                avg_gpm = EXCLUDED.avg_gpm,
+                                avg_xpm = EXCLUDED.avg_xpm;
+                            """
+        with conn.cursor() as cur:
+            for hero_id in hero_ids:
+                responce = requests.get(f"https://api.opendota.com/api/benchmarks?hero_id={hero_id}")
+                while responce.status_code != 200:
+                    time.sleep(1)
+                    responce = requests.get(f"https://api.opendota.com/api/benchmarks?hero_id={hero_id}")
+                benchmark_data = responce.json()
+                benchmark_values = (
+                    hero_id,
+                    benchmark_data['result']['gold_per_min'][4]['value'], # gpm
+                    benchmark_data['result']['xp_per_min'][4]['value'] #xpm
+                    )
+                
+                cur.execute(insert_bench_query, benchmark_values)
+            conn.commit()
+        
                 
 if __name__ == '__main__':
     load_dotenv()
     get_matches()
-        
+    get_hero_benchmarks()
     
